@@ -4,6 +4,12 @@ use App\Models\User;
 
 return [
 
+    'bootstrap_admin' => [
+        'name' => env('BOOTSTRAP_ADMIN_NAME', 'Administrator'),
+        'email' => env('BOOTSTRAP_ADMIN_EMAIL'),
+        'password' => env('BOOTSTRAP_ADMIN_PASSWORD'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Defaults

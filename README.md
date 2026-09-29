@@ -7,6 +7,48 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Akun awal production
+
+Registrasi publik tidak tersedia. Seeder default hanya membuat administrator awal;
+unit, pengguna, periode, dan ambang utilisasi dikelola melalui menu admin setelah login.
+Administrator awal boleh belum memiliki unit; buat unit lalu lengkapi akunnya melalui menu Organisasi.
+
+1. Atur `APP_ENV=production`, `APP_DEBUG=false`, dan koneksi database yang benar pada server.
+2. Isi `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, dan `BOOTSTRAP_ADMIN_PASSWORD`
+   di `.env` server. Password wajib 12–72 karakter, mengandung huruf besar/kecil,
+   angka, dan simbol. Gunakan password unik dari password manager; jangan commit `.env`.
+3. Jalankan dengan PHP yang memenuhi `composer.json`:
+
+   ```bash
+   php artisan config:cache
+   php artisan migrate --force
+   php artisan db:seed --force
+   ```
+
+4. Login dengan akun tersebut, lalu buat unit dan akun pengguna melalui `/admin/organisasi`.
+   Konfigurasikan periode dan ambang utilisasi sesuai kebijakan organisasi.
+5. Kosongkan `BOOTSTRAP_ADMIN_PASSWORD` setelah berhasil, lalu jalankan
+   `php artisan config:cache` kembali agar password bootstrap tidak tertinggal dalam cache konfigurasi.
+   Pertahankan email bootstrap agar seeder ulang dapat mengenali akun tersebut.
+
+Seeder ulang tidak mengubah nama, password, role, atau status akun yang sudah ada.
+Jika email digunakan akun non-administrator atau nonaktif, proses ditolak tanpa mengubahnya.
+Kredensial kosong/tidak valid ditolak sebelum pembuatan akun. Password disimpan
+melalui cast `hashed` pada model User dan tidak dicetak ke terminal.
+
+Seeder tidak menghapus data demo yang telanjur ada. Tinjau akun demo dan relasinya
+secara terpisah sebelum go-live. Jangan menggunakan `migrate:fresh` pada database production.
+Untuk pembatalan, kelola akun melalui administrator lain; jangan reset database.
+
+Data demo lama tersedia secara eksplisit hanya untuk `local`/`testing`:
+
+```bash
+php artisan db:seed --class=DemoSeeder
+```
+
+DemoSeeder memperbarui data contoh dan mereset password akun demo; gunakan hanya
+pada database pengembangan. Verifikasi perubahan dengan `php artisan test`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
