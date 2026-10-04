@@ -203,9 +203,10 @@ class OperationalAdminTest extends TestCase
 
         $this->actingAs($manager)->get(route('members.show', $member))
             ->assertOk()->assertSee($member->name)->assertSee('Catatan aktivitas aktual');
-        $this->actingAs($otherManager)->get(route('members.show', $member))->assertForbidden();
+        $this->actingAs($otherManager)->get(route('members.show', $member))->assertOk();
+        $this->actingAs($member)->get(route('members.show', $otherManager))->assertForbidden();
         $this->assertDatabaseHas('audit_logs', [
-            'actor_id' => $otherManager->id, 'action' => 'security.access_denied',
+            'actor_id' => $member->id, 'action' => 'security.access_denied',
         ]);
     }
 

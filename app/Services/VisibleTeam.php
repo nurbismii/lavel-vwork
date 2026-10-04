@@ -14,7 +14,13 @@ class VisibleTeam
 
         return match ($actor->role) {
             UserRole::Member => $query->whereKey($actor->id),
-            UserRole::Manager => $query->where('supervisor_id', $actor->id),
+            UserRole::Supervisor => $query->where(fn (Builder $team) => $team
+                ->whereKey($actor->id)
+                ->when($actor->organizational_unit_id !== null, fn (Builder $members) => $members
+                    ->orWhere(fn (Builder $unit) => $unit
+                        ->where('organizational_unit_id', $actor->organizational_unit_id)
+                        ->where('role', UserRole::Member)))),
+            UserRole::Manager => $query->whereIn('role', [UserRole::Supervisor, UserRole::Member]),
             UserRole::ProcessOwner, UserRole::Viewer => $query->where('organizational_unit_id', $actor->organizational_unit_id),
             UserRole::Administrator => $query,
         };
