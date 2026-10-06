@@ -51,7 +51,7 @@
                         <section class="report-entry">
                             <p>{{ $item['progress_summary'] }}</p>
                             @if($item['actual_summary'])<small class="actual-recap">Rekap aktual: {{ $item['actual_summary'] }}</small>@endif
-                            <small>Progres {{ $item['progress_percentage'] }}% · {{ $item['report_date']->translatedFormat('d M Y') }}@if($item['target_date']) · Target {{ $item['target_date']->translatedFormat('d M Y') }}@endif</small>
+                            <small>Progres {{ $item['progress_percentage'] }}% · {{ $item['report_date']->translatedFormat('d M Y') }}@if($item['start_date']) · Rencana mulai {{ $item['start_date']->translatedFormat('d M Y') }}@endif @if($item['target_date']) · Target selesai {{ $item['target_date']->translatedFormat('d M Y') }}@endif</small>
                             @if($item['obstacle_note'])<div><strong>Kendala/Kronologi:</strong><p>{{ $item['obstacle_note'] }}</p></div>@endif
                             @if($item['action_note'])<div><strong>{{ $status === \App\Enums\ProgressStatus::Completed ? 'Langkah yang sudah diambil:' : 'Langkah yang akan diambil:' }}</strong><p>{{ $item['action_note'] }}</p></div>@endif
                         </section>

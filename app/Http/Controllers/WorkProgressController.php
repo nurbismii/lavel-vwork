@@ -68,13 +68,19 @@ class WorkProgressController extends Controller
                 'report_date' => $reportDate->toDateString(),
                 'category' => $category,
                 'name' => $name,
+                'status' => $values['status'],
             ];
             $payload = [
                 ...$values,
                 ...$attributes,
                 'source_activity_id' => $sourceActivity?->id,
             ];
-            $item = $submission->progressItems()->where($attributes)->first();
+            $item = $submission->progressItems()
+                ->where('category', $category)
+                ->where('name', $name)
+                ->where('status', $values['status'])
+                ->whereDate('report_date', $reportDate)
+                ->first();
             $before = $item?->toArray();
 
             if ($item) {
@@ -91,10 +97,10 @@ class WorkProgressController extends Controller
         return back()->with([
             'success' => $item->wasRecentlyCreated
                 ? 'Progres pekerjaan berhasil dicatat.'
-                : 'Progres pekerjaan pada tanggal tersebut berhasil diperbarui.',
+                : 'Progres pekerjaan dengan status dan tanggal tersebut berhasil diperbarui.',
             'clear_draft' => 'progress-'.$entryMode.'-'.$submission->id,
             'progress_item_id' => $item->id,
-            'entry_tab' => 'progress',
+            'entry_tab' => $entryMode === 'planned' ? 'planned' : 'progress',
         ]);
     }
 
@@ -113,7 +119,7 @@ class WorkProgressController extends Controller
             $progress->delete();
         });
 
-        return back()->with(['success' => 'Catatan progres berhasil dihapus.', 'entry_tab' => 'progress']);
+        return back()->with(['success' => 'Catatan progres berhasil dihapus.', 'entry_tab' => $progress->status === \App\Enums\ProgressStatus::Planned ? 'planned' : 'progress']);
     }
 
     private function editableSubmission(Request $request): WorkloadSubmission

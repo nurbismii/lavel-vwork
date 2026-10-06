@@ -57,7 +57,13 @@ class WorkloadEntryController extends Controller
         return view('workload.entry', compact('period', 'submission', 'metrics', 'activityGroups', 'categoryOptions', 'workTypeOptions'));
     }
 
-    public function activity(ActivityRequest $request, AuditLogger $audit, ActivityMasterOptionResolver $optionResolver): RedirectResponse
+    public function activity(
+        ActivityRequest $request,
+        AuditLogger $audit,
+        ActivityMasterOptionResolver $optionResolver,
+        WorkloadCalculator $calculator,
+        WorkScheduleCalculator $scheduleCalculator,
+    ): RedirectResponse
     {
         $submission = $this->editableSubmission($request);
         $values = $request->validated();
@@ -71,8 +77,25 @@ class WorkloadEntryController extends Controller
             ]);
         }
 
+        if (($values['duration_unit'] ?? null) === 'day') {
+            $this->ensureStandardCapacity($submission, $submission->workPeriod, $calculator, $scheduleCalculator);
+        }
+        $actualMinutes = isset($values['actual_duration'])
+            ? (int) round((float) $values['actual_duration'] * match ($values['duration_unit']) {
+                'hour' => 60,
+                'day' => (float) $submission->capacity->hours_per_day * 60,
+                default => 1,
+            })
+            : (int) $values['actual_minutes'];
+
+        if ($actualMinutes < 1 || $actualMinutes > 1440) {
+            throw ValidationException::withMessages([
+                'actual_duration' => 'Durasi setelah konversi harus antara 1 dan 1.440 menit untuk satu tanggal aktivitas.',
+            ]);
+        }
+
         try {
-            DB::transaction(function () use ($submission, $values, $activityDate, $audit, $request, $optionResolver) {
+            DB::transaction(function () use ($submission, $values, $activityDate, $actualMinutes, $audit, $request, $optionResolver) {
                 $categoryOption = $optionResolver->resolve(ActivityMasterOption::TYPE_CATEGORY, $values['category'], $request->user());
                 $workTypeOption = $optionResolver->resolve(ActivityMasterOption::TYPE_WORK_TYPE, $values['work_type'], $request->user());
 
@@ -83,7 +106,6 @@ class WorkloadEntryController extends Controller
                 }
 
                 $actualVolume = (float) ($values['actual_volume'] ?? 1);
-                $actualMinutes = (int) $values['actual_minutes'];
                 $activity = $submission->activities()->create([
                     'activity_date' => $activityDate->toDateString(),
                     'name' => $values['name'],

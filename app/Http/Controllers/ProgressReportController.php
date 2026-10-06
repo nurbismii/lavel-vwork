@@ -107,24 +107,37 @@ class ProgressReportController extends Controller
         return $keys->map(function (string $key) use ($activityGroups, $progressGroups) {
             $actuals = $activityGroups->get($key, collect());
             $supplements = $progressGroups->get($key, collect());
-            $latest = $supplements->sortByDesc(
-                fn ($item) => $item->report_date->format('Y-m-d').' '.$item->created_at->format('H:i:s.u'),
-            )->first();
-            $reference = $latest ?? $actuals->first();
-            $status = $latest?->status ?? ProgressStatus::Completed;
+            $reference = $supplements->first() ?? $actuals->first();
             $byStatus = collect(ProgressStatus::cases())->mapWithKeys(
                 fn (ProgressStatus $itemStatus) => [$itemStatus->value => collect()],
             );
-            $byStatus->put($status->value, collect([[
-                'progress_summary' => $latest?->progress_summary
-                    ?? 'Aktivitas aktual pada periode laporan.',
-                'actual_summary' => $this->actualSummary($actuals),
-                'report_date' => $latest?->report_date ?? $actuals->max('activity_date'),
-                'progress_percentage' => $latest?->progress_percentage ?? 100,
-                'target_date' => $latest?->target_date,
-                'obstacle_note' => $latest?->obstacle_note,
-                'action_note' => $latest?->action_note,
-            ]]));
+            $actualSummary = $this->actualSummary($actuals);
+
+            if ($supplements->isEmpty()) {
+                $byStatus->get(ProgressStatus::Completed->value)->push([
+                    'progress_summary' => 'Aktivitas aktual pada periode laporan.',
+                    'actual_summary' => $actualSummary,
+                    'report_date' => $actuals->max('activity_date'),
+                    'progress_percentage' => 100,
+                    'start_date' => null,
+                    'target_date' => null,
+                    'obstacle_note' => null,
+                    'action_note' => null,
+                ]);
+            } else {
+                foreach ($supplements->sortBy('report_date')->values() as $index => $item) {
+                    $byStatus->get($item->status->value)->push([
+                        'progress_summary' => $item->progress_summary,
+                        'actual_summary' => $index === 0 ? $actualSummary : null,
+                        'report_date' => $item->report_date,
+                        'progress_percentage' => $item->progress_percentage,
+                        'start_date' => $item->start_date,
+                        'target_date' => $item->target_date,
+                        'obstacle_note' => $item->obstacle_note,
+                        'action_note' => $item->action_note,
+                    ]);
+                }
+            }
 
             return [
                 'category' => $reference->category,

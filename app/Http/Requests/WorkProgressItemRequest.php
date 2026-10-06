@@ -26,8 +26,17 @@ class WorkProgressItemRequest extends FormRequest
             'progress_summary' => ['required', 'string', 'max:3000'],
             'obstacle_note' => ['nullable', 'string', 'max:3000'],
             'action_note' => ['required', 'string', 'max:3000'],
-            'target_date' => ['nullable', 'required_unless:status,completed', 'date'],
+            'start_date' => ['nullable', 'date'],
+            'target_date' => ['nullable', 'required_unless:status,completed', 'date', Rule::when($this->filled('start_date'), 'after_or_equal:start_date')],
             'progress_percentage' => ['required', 'integer', 'between:0,100'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'start_date.date' => 'Rencana mulai harus berupa tanggal yang valid.',
+            'target_date.after_or_equal' => 'Target selesai tidak boleh sebelum rencana mulai.',
         ];
     }
 

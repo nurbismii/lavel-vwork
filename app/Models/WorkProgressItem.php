@@ -10,7 +10,7 @@ class WorkProgressItem extends Model
 {
     protected $fillable = [
         'workload_submission_id', 'source_activity_id', 'report_date', 'category', 'name', 'status',
-        'progress_summary', 'obstacle_note', 'action_note', 'target_date',
+        'progress_summary', 'obstacle_note', 'action_note', 'start_date', 'target_date',
         'progress_percentage',
     ];
 
@@ -18,6 +18,7 @@ class WorkProgressItem extends Model
     {
         return [
             'report_date' => 'date',
+            'start_date' => 'date',
             'target_date' => 'date',
             'status' => ProgressStatus::class,
             'progress_percentage' => 'integer',

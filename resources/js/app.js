@@ -38,6 +38,7 @@ document.querySelectorAll('[data-draft-form]').forEach((form) => {
         if (saved) {
             fields.forEach((field) => {
                 if (Object.hasOwn(saved, field.name)) field.value = saved[field.name];
+                else if (field.name === 'actual_duration' && Object.hasOwn(saved, 'actual_minutes')) field.value = saved.actual_minutes;
             });
             if (indicator) indicator.textContent = 'Draf lokal dipulihkan. Simpan untuk mengirim ke server.';
         }
@@ -143,3 +144,55 @@ followUpOwner?.addEventListener('change', () => {
     loadOwnerSubmissions();
 });
 loadOwnerSubmissions();
+
+const durationInput = document.querySelector('[data-duration-input]');
+if (durationInput) {
+    const value = durationInput.querySelector('input');
+    const unit = durationInput.querySelector('select');
+    const preview = document.querySelector('[data-duration-preview]');
+    const updateDurationPreview = () => {
+        const multiplier = unit.value === 'day' ? Number(durationInput.dataset.hoursPerDay) * 60 : unit.value === 'hour' ? 60 : 1;
+        const minutes = Math.round(Number(value.value) * multiplier);
+        preview.textContent = !value.value ? '' : minutes < 1 || minutes > 1440
+            ? 'Durasi setelah konversi harus antara 1 dan 1.440 menit.'
+            : `Setara ${minutes.toLocaleString('id-ID')} menit (${(minutes / 60).toLocaleString('id-ID', { maximumFractionDigits: 2 })} jam).`;
+    };
+    durationInput.addEventListener('input', updateDurationPreview);
+    durationInput.addEventListener('change', updateDurationPreview);
+    updateDurationPreview();
+}
+
+// Bullet tetap berupa teks biasa agar tersimpan bersama draf dan laporan.
+document.querySelectorAll('[data-auto-bullet]').forEach((field) => {
+    let wasEmpty = field.value.length === 0;
+    field.addEventListener('input', (event) => {
+        if (event.isComposing) return;
+        if (wasEmpty && field.value.trim() && !/^[ \t]*[•*-] /.test(field.value)
+            && (field.maxLength < 0 || field.value.length + 2 <= field.maxLength)) {
+            const start = field.selectionStart;
+            const end = field.selectionEnd;
+            field.setRangeText('• ', 0, 0, 'preserve');
+            field.setSelectionRange(start + 2, end + 2);
+        }
+        wasEmpty = field.value.length === 0;
+    });
+    field.addEventListener('compositionend', () => field.dispatchEvent(new Event('input', { bubbles: true })));
+
+    field.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+        const start = field.selectionStart;
+        const end = field.selectionEnd;
+        const lineStart = start === 0 ? 0 : field.value.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = field.value.indexOf('\n', start);
+        const line = field.value.slice(lineStart, lineEnd < 0 ? field.value.length : lineEnd);
+        const prefix = line.match(/^[ \t]*[•*-] /)?.[0];
+        const emptyBullet = prefix && !line.slice(prefix.length).trim();
+        const beforeCaret = field.value.slice(lineStart, start);
+        const replacement = emptyBullet ? '' : `${prefix ? '' : '• '}${beforeCaret}\n${prefix ?? '• '}`;
+        const replaceEnd = emptyBullet ? lineStart + line.length : end;
+        event.preventDefault();
+        if (field.maxLength >= 0 && field.value.length - (replaceEnd - lineStart) + replacement.length > field.maxLength) return;
+        field.setRangeText(replacement, lineStart, replaceEnd, 'end');
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+});

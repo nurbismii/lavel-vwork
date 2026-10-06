@@ -74,8 +74,14 @@ class WorkloadFlowTest extends TestCase
             ->assertDontSee('Ringkasan rencana');
 
         $this->get(route('workload.entry', ['tab' => 'progress']))
-            ->assertOk()->assertSee('Ringkasan rencana')->assertDontSee('name="actual_minutes"', false)
+            ->assertOk()->assertSee('Lengkapi laporan progres')->assertDontSee('Ringkasan rencana')->assertDontSee('name="actual_duration"', false)
             ->assertSee('id="category-options"', false);
+
+        $this->get(route('workload.entry', ['tab' => 'planned']))
+            ->assertOk()->assertSee('Ringkasan rencana')->assertSee('name="start_date"', false)
+            ->assertDontSee('Lengkapi laporan progres');
+        $this->get(route('workload.entry', ['tab' => 'invalid']))
+            ->assertOk()->assertSee('Catat aktivitas aktual');
 
         $this->from(route('workload.entry'))->post(route('workload.progress.store'), [
             'entry_mode' => 'planned',
@@ -83,7 +89,73 @@ class WorkloadFlowTest extends TestCase
         $this->get(route('workload.entry'))->assertOk()->assertSee('Ringkasan rencana');
 
         $this->withSession(['entry_tab' => 'progress', '_old_input' => []])->get(route('workload.entry'))
-            ->assertOk()->assertSee('Ringkasan rencana');
+            ->assertOk()->assertSee('Lengkapi laporan progres')->assertDontSee('Ringkasan rencana');
+    }
+
+    public function test_planned_tab_separates_lists_counts_and_restores_after_save_and_delete(): void
+    {
+        [$member, , $submission] = $this->context();
+        $this->travelTo(Carbon::parse('2026-08-15'));
+        $base = [
+            'report_date' => '2026-08-10', 'category' => 'Operasional',
+            'progress_summary' => '• Ringkasan', 'action_note' => '• Langkah berikutnya',
+        ];
+        $submission->progressItems()->create([
+            ...$base, 'name' => 'Pekerjaan selesai', 'status' => 'completed', 'progress_percentage' => 100,
+        ]);
+        $this->actingAs($member)->post(route('workload.progress.store'), [
+            ...$base, 'name' => 'Pekerjaan direncanakan', 'entry_mode' => 'planned',
+            'status' => 'planned', 'progress_percentage' => 0, 'target_date' => '2026-08-20',
+        ])->assertSessionHasNoErrors()->assertSessionHas('entry_tab', 'planned');
+        $this->get(route('workload.entry'))->assertOk()
+            ->assertSee('Rencana pekerjaan <span>1</span>', false)
+            ->assertSee('Progres pekerjaan <span>1</span>', false)
+            ->assertSee('Pekerjaan direncanakan')->assertDontSee('Pekerjaan selesai');
+        $this->withSession(['entry_tab' => null, '_old_input' => []])
+            ->get(route('workload.entry', ['tab' => 'progress']))->assertOk()
+            ->assertSee('Pekerjaan selesai')->assertDontSee('Pekerjaan direncanakan')
+            ->assertDontSee('Ringkasan rencana');
+        $plan = $submission->progressItems()->where('status', 'planned')->sole();
+        $this->delete(route('workload.progress.destroy', $plan))
+            ->assertRedirect()->assertSessionHas('entry_tab', 'planned');
+        $this->get(route('workload.entry'))->assertOk()
+            ->assertSee('Belum ada rencana pekerjaan.')->assertDontSee('Pekerjaan selesai');
+    }
+
+    public function test_actual_duration_units_convert_to_minutes_using_period_schedule(): void
+    {
+        [$member, , $submission] = $this->context();
+        $this->travelTo(Carbon::parse('2026-08-15'));
+        $base = [
+            'activity_date' => '2026-08-10', 'category' => 'Operasional', 'work_type' => 'Rutin',
+        ];
+
+        foreach ([[5, 2, 8, 480], [6, 1, 7, 420], [14, 2, 7, 420]] as [$work, $off, $hours, $expected]) {
+            $actor = User::factory()->create([
+                'role' => UserRole::Member, 'is_active' => true, 'cycle_work_days' => $work, 'cycle_off_days' => $off,
+                'daily_work_hours' => $hours, 'work_cycle_anchor_date' => '2026-08-01',
+            ]);
+            $this->actingAs($actor)->post(route('workload.activity'), [
+                ...$base, 'name' => 'Sehari kerja', 'actual_duration' => 1, 'duration_unit' => 'day',
+            ])->assertRedirect()->assertSessionHasNoErrors();
+            $this->assertSame($expected, $actor->workloadSubmissions()->sole()->activities()->sole()->required_minutes);
+        }
+
+        $this->actingAs($member)->get(route('workload.entry'))->assertOk()->assertSee('Hari kerja');
+        $member->update(['daily_work_hours' => 8]);
+        foreach ([['minute', 45, 45], ['hour', 1.5, 90], ['day', 0.5, 210], ['hour', 0.333, 20]] as [$unit, $duration, $expected]) {
+            $this->post(route('workload.activity'), [
+                ...$base, 'name' => $unit.$duration, 'actual_duration' => $duration, 'duration_unit' => $unit,
+            ])->assertRedirect()->assertSessionHasNoErrors();
+            $this->assertSame($expected, $submission->activities()->where('name', $unit.$duration)->sole()->required_minutes);
+        }
+
+        foreach ([['hour', 25], ['minute', 0.01], ['week', 1], ['day', 0]] as [$unit, $duration]) {
+            $this->post(route('workload.activity'), [
+                ...$base, 'name' => 'Tidak valid', 'actual_duration' => $duration, 'duration_unit' => $unit,
+            ])->assertSessionHasErrors();
+        }
+        $this->assertSame(4, $submission->activities()->count());
     }
 
     public function test_member_cannot_override_standard_capacity(): void
@@ -277,6 +349,91 @@ class WorkloadFlowTest extends TestCase
             'user' => $member->id,
             'frequency' => 'monthly',
         ]))->assertOk()->assertSee('Menyusun kamus kompetensi.');
+    }
+
+    public function test_report_preserves_both_statuses_for_the_same_job_and_renders_bullet_lines(): void
+    {
+        [$member, , $submission] = $this->context();
+        $this->travelTo(Carbon::parse('2026-08-15'));
+        $activity = $submission->activities()->create([
+            'activity_date' => '2026-08-10', 'name' => 'Test Aktivitas', 'category' => 'Operasional',
+            'work_type' => 'routine', 'monthly_volume' => 1, 'unit' => 'Aktivitas',
+            'average_minutes_per_unit' => 60, 'required_minutes' => 60,
+        ]);
+        $base = [
+            'entry_mode' => 'actual', 'source_activity_id' => $activity->id,
+            'report_date' => '2026-08-10', 'action_note' => "• Koordinasi\n• Review",
+            'obstacle_note' => "• Kendala pertama\n• Kendala kedua",
+        ];
+        $this->actingAs($member)->post(route('workload.progress.store'), [
+            ...$base, 'status' => 'completed', 'progress_percentage' => 100,
+            'progress_summary' => "• Hasil selesai\n• Dokumen selesai",
+        ])->assertSessionHasNoErrors();
+        $ongoing = [
+            ...$base, 'status' => 'in_progress', 'progress_percentage' => 50,
+            'target_date' => '2026-08-20', 'progress_summary' => "• Hasil berjalan\n• <script>alert(1)</script>",
+        ];
+        $this->post(route('workload.progress.store'), $ongoing)->assertSessionHasNoErrors();
+        $this->post(route('workload.progress.store'), [
+            ...$ongoing, 'progress_percentage' => 60,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(2, $submission->progressItems()->count());
+        $this->post(route('workload.progress.store'), [
+            ...$ongoing, 'report_date' => '2026-08-11', 'progress_summary' => '• Hari berikutnya',
+        ])->assertSessionHasNoErrors();
+
+        $report = $this->get(route('reports.progress', ['period' => $submission->work_period_id, 'user' => $member->id]));
+        $report->assertOk()->assertSee("• Hasil selesai\n• Dokumen selesai")
+            ->assertSee("• Hasil berjalan\n• <script>alert(1)</script>")
+            ->assertSee('• Hari berikutnya')->assertSee("• Koordinasi\n• Review")
+            ->assertSee("• Kendala pertama\n• Kendala kedua")
+            ->assertDontSee('<script>alert(1)</script>', false);
+        $job = $report->viewData('jobs')->get('Operasional')->first();
+        $this->assertCount(1, $job['by_status']['completed']);
+        $this->assertCount(2, $job['by_status']['in_progress']);
+        $this->assertSame(60, $job['by_status']['in_progress']->first()['progress_percentage']);
+        $this->assertSame(1, collect($job['by_status'])->flatten(1)->filter(fn ($item) => $item['actual_summary'] !== null)->count());
+
+        $this->get(route('reports.progress', [
+            'period' => $submission->work_period_id, 'user' => $member->id,
+            'frequency' => 'weekly', 'start_date' => '2026-08-01',
+        ]))->assertOk()->assertDontSee('Test Aktivitas');
+    }
+
+    public function test_planned_work_stores_separate_dates_and_rejects_finish_before_start(): void
+    {
+        [$member, , $submission] = $this->context();
+        $this->travelTo(Carbon::parse('2026-08-15'));
+        $payload = [
+            'entry_mode' => 'planned', 'status' => 'planned', 'progress_percentage' => 0,
+            'report_date' => '2026-08-10', 'category' => 'Operasional', 'name' => 'Rencana pekerjaan',
+            'progress_summary' => '• Menyusun laporan', 'action_note' => '• Mengumpulkan data',
+            'start_date' => '2026-08-12', 'target_date' => '2026-08-20',
+        ];
+        $this->actingAs($member)->post(route('workload.progress.store'), $payload)
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $item = $submission->progressItems()->sole();
+        $this->assertSame('2026-08-12', $item->start_date->toDateString());
+        $this->assertSame('2026-08-20', $item->target_date->toDateString());
+        $this->get(route('reports.progress', ['period' => $submission->work_period_id, 'user' => $member->id]))
+            ->assertOk()->assertSee('Rencana mulai 12 Agt 2026')->assertSee('Target selesai 20 Agt 2026');
+        $this->get(route('workload.entry', ['tab' => 'planned']))
+            ->assertOk()->assertSee('name="start_date"', false)->assertDontSee('Target mulai atau selesai');
+        $this->post(route('workload.progress.store'), [
+            ...$payload, 'target_date' => '2026-08-11',
+        ])->assertSessionHasErrors('target_date');
+        $this->assertSame('2026-08-20', $item->fresh()->target_date->toDateString());
+        $this->post(route('workload.progress.store'), [
+            ...$payload, 'target_date' => '2026-08-12',
+        ])->assertSessionHasNoErrors();
+        $this->post(route('workload.progress.store'), [
+            ...$payload, 'start_date' => null, 'name' => 'Tanpa jadwal mulai',
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($submission->progressItems()->where('name', 'Tanpa jadwal mulai')->sole()->start_date);
+        $this->post(route('workload.progress.store'), [
+            ...$payload, 'start_date' => 'bukan tanggal',
+        ])->assertSessionHasErrors('start_date');
+        $this->assertSame(2, $submission->progressItems()->count());
     }
 
     public function test_progress_validation_preserves_actual_workload_data(): void
