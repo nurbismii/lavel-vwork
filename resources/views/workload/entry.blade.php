@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Input Beban Kerja — RuangKerja</title>@fonts @vite(['resources/css/app.css','resources/js/app.js'])</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laporan Kerja Saya — RuangKerja</title>@fonts @vite(['resources/css/app.css','resources/js/app.js'])</head>
 <body data-clear-draft="{{ session('clear_draft') }}">
 <header class="portal-header"><a href="{{ route('dashboard') }}" class="portal-brand"><span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M5 17.5V12m7 5.5V6m7 11.5V9"/></svg></span><strong>RuangKerja</strong></a><div><a href="{{ route('dashboard') }}" class="button secondary">← Kembali ke dashboard</a><span class="avatar avatar-indigo">{{ collect(explode(' ',auth()->user()->name))->map(fn($w)=>mb_substr($w,0,1))->take(2)->join('') }}</span></div></header>
 <main class="form-page">
@@ -10,10 +10,11 @@
 
     @if(!$period)<div class="empty-period"><h2>Belum ada periode terbuka</h2><p>Input tersedia setelah PIC membuka periode bulanan.</p></div>@else
     <section class="entry-status"><div><span>Periode</span><strong>{{ $period->period_start->translatedFormat('F Y') }}</strong></div><div><span>Batas pengisian</span><strong>{{ $period->submission_deadline->translatedFormat('d F Y') }}</strong></div><div><span>Kelengkapan</span><strong>{{ $submission->capacity && $submission->activities->isNotEmpty() ? 'Siap diajukan' : 'Belum lengkap' }}</strong></div></section>
+    @php($activeTab = old('entry_mode') || session('entry_tab') === 'progress' || request('tab') === 'progress' ? 'progress' : 'activity')
     <div class="entry-layout">
         <div class="entry-main">
-            <section class="form-card">
-                <div class="form-card-heading"><span>1</span><div><h2>Acuan kapasitas</h2><p>Standar periode diterapkan otomatis dan tidak dapat diubah oleh anggota.</p></div></div>
+            <details class="form-card entry-capacity">
+                <summary><span><strong>Acuan kapasitas</strong><small>Diterapkan otomatis sesuai standar periode</small></span><b>{{ number_format($metrics['effective_minutes']/60,1,',','.') }} jam</b></summary>
                 @if($submission->capacity)
                     <section class="capacity-standard-card" aria-label="Kapasitas standar periode">
                         <header>
@@ -31,12 +32,18 @@
                         <footer><span>i</span><p>{{ $period->capacity_policy_note ?: 'Cuti dan libur nasional tidak mengurangi kapasitas dasar. Pola dan jam kerja mengikuti profil anggota.' }}</p></footer>
                     </section>
                 @endif
-            </section>
+            </details>
 
+            <nav class="entry-tabs" aria-label="Bagian laporan kerja">
+                <a href="{{ route('workload.entry') }}" @if($activeTab === 'activity') aria-current="page" @endif>Aktivitas aktual <span>{{ $submission->activities->count() }}</span></a>
+                <a href="{{ route('workload.entry', ['tab' => 'progress']) }}" @if($activeTab === 'progress') aria-current="page" @endif>Progres pekerjaan <span>{{ $submission->progressItems->count() }}</span></a>
+            </nav>
+
+            @if($activeTab === 'activity')
             <section class="form-card">
-                <div class="form-card-heading"><span>2</span><div><h2>Catat aktivitas aktual</h2><p>Masukkan satu catatan untuk pekerjaan yang dilakukan pada hari tersebut. Hindari pencatatan aktivitas yang sama dua kali.</p></div></div>
+                <div class="form-card-heading"><div><h2>Catat aktivitas aktual</h2><p>Masukkan satu catatan untuk pekerjaan yang dilakukan pada hari tersebut. Hindari pencatatan aktivitas yang sama dua kali.</p></div></div>
                 <form method="POST" action="{{ route('workload.activity') }}" class="activity-form" data-draft-form data-draft-key="activity-{{ $submission->id }}">@csrf
-                    <label class="field"><span>Tanggal penginputan <em>read-only</em></span><input type="text" value="{{ today()->translatedFormat('d F Y') }}" readonly aria-readonly="true"><small>Ditentukan otomatis oleh waktu server.</small></label>
+                    <label class="field"><span>Tanggal penginputan <em>read-only</em></span><input type="text" value="{{ today()->translatedFormat('d F Y') }}" readonly aria-readonly="true"></label>
                     <label class="field"><span>Tanggal aktivitas</span><input type="date" name="activity_date" min="{{ $period->period_start->toDateString() }}" max="{{ min(today(), $period->period_start->copy()->endOfMonth())->toDateString() }}" value="{{ old('activity_date', today()->betweenIncluded($period->period_start, $period->period_start->copy()->endOfMonth()) ? today()->toDateString() : $period->period_start->copy()->endOfMonth()->toDateString()) }}" required></label>
                     <label class="field span-2"><span>Nama aktivitas</span><input name="name" value="{{ old('name') }}" placeholder="Contoh: Meninjau laporan operasional" maxlength="255" required></label>
                     <label class="field"><span>Kategori</span><div class="editable-select"><input name="category" list="category-options" value="{{ old('category') }}" placeholder="Pilih atau ketik kategori baru" maxlength="100" autocomplete="off" required><i aria-hidden="true"></i></div><small>Pilih dari master atau ketik pilihan baru.</small></label>
@@ -80,7 +87,6 @@
                     <label class="field"><span>Keterangan <em>opsional</em></span><input name="exception_reason" value="{{ old('exception_reason') }}" placeholder="Hasil, kendala, atau konteks penting" maxlength="1000"></label>
                     <div class="form-action span-2"><button class="button primary" type="submit" @disabled(!$submission->isEditable())>+ Catat aktivitas aktual</button></div>
                     <small class="draft-indicator span-2" data-draft-indicator aria-live="polite">Draf catatan akan tersimpan otomatis di perangkat ini.</small>
-                    <datalist id="category-options">@foreach($categoryOptions as $option)<option value="{{ $option->label }}"></option>@endforeach</datalist>
                     <datalist id="work-type-options">@foreach($workTypeOptions as $option)<option value="{{ $option->label }}"></option>@endforeach</datalist>
                 </form>
                 <div class="activity-list">
@@ -90,8 +96,9 @@
                 </div>
             </section>
 
+            @else
             <section class="form-card">
-                <div class="form-card-heading"><span>3</span><div><h2>Lengkapi laporan progres</h2><p>Pilih pekerjaan dari aktivitas aktual. Nama pekerjaan, kategori, jumlah catatan, dan total waktunya akan dirangkum otomatis.</p></div></div>
+                <div class="form-card-heading"><div><h2>Lengkapi laporan progres</h2><p>Pilih pekerjaan dari aktivitas aktual. Nama pekerjaan, kategori, jumlah catatan, dan total waktunya akan dirangkum otomatis.</p></div></div>
                 @if($activityGroups->isNotEmpty())
                 <form method="POST" action="{{ route('workload.progress.store') }}" class="activity-form" data-draft-form data-draft-key="progress-actual-{{ $submission->id }}">@csrf
                     <input type="hidden" name="entry_mode" value="actual">
@@ -111,7 +118,7 @@
                 @endif
 
                 <details class="planned-work-panel" @if(old('entry_mode') === 'planned') open @endif>
-                    <summary>+ Tambah rencana pekerjaan yang belum memiliki aktivitas</summary>
+                    <summary>+ Tambah aktivitas (Akan dikerjakan)</summary>
                     <form method="POST" action="{{ route('workload.progress.store') }}" class="activity-form" data-draft-form data-draft-key="progress-planned-{{ $submission->id }}">@csrf
                         <input type="hidden" name="entry_mode" value="planned"><input type="hidden" name="status" value="planned"><input type="hidden" name="progress_percentage" value="0">
                         <label class="field"><span>Tanggal laporan</span><input type="date" name="report_date" min="{{ $period->period_start->toDateString() }}" max="{{ min(today(), $period->period_start->copy()->endOfMonth())->toDateString() }}" value="{{ old('entry_mode') === 'planned' ? old('report_date') : (today()->betweenIncluded($period->period_start, $period->period_start->copy()->endOfMonth()) ? today()->toDateString() : $period->period_start->copy()->endOfMonth()->toDateString()) }}" required></label>
@@ -133,6 +140,8 @@
                     @empty<div class="empty-activities">Belum ada progres pekerjaan untuk laporan HRD.</div>@endforelse
                 </div>
             </section>
+            @endif
+            <datalist id="category-options">@foreach($categoryOptions as $option)<option value="{{ $option->label }}"></option>@endforeach</datalist>
         </div>
         <aside class="summary-card">
             <p class="eyebrow">RINGKASAN SAYA</p><h2>{{ $metrics['utilization'] !== null ? number_format($metrics['utilization'],1,',','.') .'%' : '—' }}</h2><span class="status-badge {{ $metrics['status']->value }}"><i></i>{{ $metrics['status']->label() }}</span>

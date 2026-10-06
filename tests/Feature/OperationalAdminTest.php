@@ -121,14 +121,14 @@ class OperationalAdminTest extends TestCase
         $this->assertSame(1, $submission->activities()->where('work_type', 'coordination')->count());
     }
 
-    public function test_viewer_cannot_open_member_input_form(): void
+    public function test_viewer_can_open_own_input_form(): void
     {
         [$unit] = $this->actors();
         $viewer = User::factory()->create([
             'role' => UserRole::Viewer, 'is_active' => true, 'organizational_unit_id' => $unit->id,
         ]);
 
-        $this->actingAs($viewer)->get(route('workload.entry'))->assertForbidden();
+        $this->actingAs($viewer)->get(route('workload.entry'))->assertOk();
     }
 
     public function test_authenticated_pages_send_security_and_no_store_headers(): void

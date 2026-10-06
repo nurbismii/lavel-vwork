@@ -17,6 +17,38 @@ class WorkloadFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_every_role_can_record_own_activity_without_modifying_another_users_activity(): void
+    {
+        [, , $otherSubmission] = $this->context();
+        $this->travelTo(Carbon::parse('2026-08-10'));
+
+        foreach (UserRole::cases() as $role) {
+            $actor = User::factory()->create(['role' => $role, 'is_active' => true]);
+            $this->actingAs($actor)->get(route('dashboard'))->assertOk()->assertSee('Input saya');
+            $this->get(route('workload.entry'))->assertOk()->assertSee('RINGKASAN SAYA');
+            $this->post(route('workload.activity'), [
+                'activity_date' => '2026-08-10', 'category' => 'Operasional',
+                'name' => 'Koordinasi harian', 'work_type' => 'routine', 'actual_minutes' => 60,
+                'user_id' => $otherSubmission->user_id,
+                'workload_submission_id' => $otherSubmission->id,
+            ])->assertRedirect()->assertSessionHasNoErrors();
+
+            $submission = $actor->workloadSubmissions()->sole();
+            $activity = $submission->activities()->sole();
+            $this->assertSame(60, $activity->required_minutes);
+            $this->assertSame(0, $otherSubmission->activities()->count());
+            $this->get(route('members.show', $actor))->assertOk();
+
+            $otherActor = User::factory()->create(['role' => $role, 'is_active' => true]);
+            $this->actingAs($otherActor)->delete(route('workload.activity.destroy', $activity))->assertForbidden();
+            $this->actingAs($actor)->delete(route('workload.activity.destroy', $activity))->assertRedirect();
+            $this->assertSame(0, $submission->activities()->count());
+
+            $actor->update(['is_active' => false]);
+            $this->get(route('workload.entry'))->assertForbidden();
+        }
+    }
+
     public function test_standard_capacity_is_applied_automatically_when_member_opens_entry(): void
     {
         [$member] = $this->context();
@@ -32,6 +64,26 @@ class WorkloadFlowTest extends TestCase
             'hours_per_day' => 7, 'productive_percentage' => 85,
             'gross_minutes' => 11340, 'effective_minutes' => 9639,
         ]);
+    }
+
+    public function test_entry_tabs_show_the_selected_form_and_restore_progress_after_validation(): void
+    {
+        [$member] = $this->context();
+        $this->actingAs($member)->get(route('workload.entry'))
+            ->assertOk()->assertSee('entry-capacity')->assertSee('Catat aktivitas aktual')
+            ->assertDontSee('Ringkasan rencana');
+
+        $this->get(route('workload.entry', ['tab' => 'progress']))
+            ->assertOk()->assertSee('Ringkasan rencana')->assertDontSee('name="actual_minutes"', false)
+            ->assertSee('id="category-options"', false);
+
+        $this->from(route('workload.entry'))->post(route('workload.progress.store'), [
+            'entry_mode' => 'planned',
+        ])->assertSessionHasErrors('report_date');
+        $this->get(route('workload.entry'))->assertOk()->assertSee('Ringkasan rencana');
+
+        $this->withSession(['entry_tab' => 'progress', '_old_input' => []])->get(route('workload.entry'))
+            ->assertOk()->assertSee('Ringkasan rencana');
     }
 
     public function test_member_cannot_override_standard_capacity(): void

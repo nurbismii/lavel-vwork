@@ -39,7 +39,7 @@ class ReportController extends Controller
             fputcsv($output, ['Dibuat oleh', $this->safeCell($request->user()->name)]);
             fputcsv($output, ['Waktu pembuatan', now()->toDateTimeString()]);
             fputcsv($output, []);
-            fputcsv($output, ['ID Anggota', 'Nama', 'Unit', 'Jabatan', 'Status Validasi', 'Kapasitas Efektif (jam)', 'Waktu Aktual (jam)', 'Utilisasi (%)', 'Status Beban']);
+            fputcsv($output, ['ID Anggota', 'Nama', 'Unit', 'Posisi', 'Status Validasi', 'Kapasitas Efektif (jam)', 'Waktu Aktual (jam)', 'Utilisasi (%)', 'Status Beban']);
             foreach ($rows as $row) {
                 fputcsv($output, [
                     $this->safeCell($row['user']->employee_code), $this->safeCell($row['user']->name),

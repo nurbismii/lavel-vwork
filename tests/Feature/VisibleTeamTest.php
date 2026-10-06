@@ -49,7 +49,7 @@ class VisibleTeamTest extends TestCase
     public function test_manager_can_see_supervisors_and_members_across_units(): void
     {
         $manager = User::factory()->create(['role' => UserRole::Manager, 'is_active' => true]);
-        $expected = [];
+        $expected = [$manager->id];
         foreach (['HI', 'GEN'] as $code) {
             $unit = OrganizationalUnit::query()->create(['code' => $code, 'name' => $code, 'is_active' => true]);
             $supervisor = User::factory()->create(['role' => UserRole::Supervisor, 'is_active' => true, 'organizational_unit_id' => $unit->id]);

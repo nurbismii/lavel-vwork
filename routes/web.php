@@ -30,7 +30,7 @@ Route::middleware(['auth', 'audit.forbidden'])->group(function () {
     Route::patch('/profil', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profil/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:5,1')->name('profile.password.update');
 
-    Route::middleware('role:member')->group(function () {
+    Route::middleware('role:member,supervisor,manager,process_owner,administrator,viewer')->group(function () {
         Route::get('/beban-kerja-saya', [WorkloadEntryController::class, 'show'])->name('workload.entry');
         Route::post('/beban-kerja-saya/aktivitas', [WorkloadEntryController::class, 'activity'])->name('workload.activity');
         Route::delete('/beban-kerja-saya/aktivitas/{activity}', [WorkloadEntryController::class, 'destroyActivity'])->name('workload.activity.destroy');

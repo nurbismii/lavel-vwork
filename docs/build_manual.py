@@ -123,7 +123,7 @@ p('Relasi atasan menentukan anggota yang terlihat oleh Manager; posisi atau jaba
 
 page('2 Persiapan organisasi dan periode')
 h('Penyiapan oleh Administrator')
-steps(['Buka Organisasi. Buat unit terlebih dahulu, lalu buat pengguna dan lengkapi identitas, jabatan, email, peran, unit, atasan, serta status aktif.',
+steps(['Buka Organisasi. Buat unit terlebih dahulu, lalu buat pengguna dan lengkapi identitas, posisi, email, peran, unit, atasan, serta status aktif.',
 'Isi hari kerja dalam siklus, hari off, jam kerja per hari, dan hari pertama siklus kerja. Tanggal acuan dihitung sebagai hari kerja pertama, bukan hari off.',
 'Periksa relasi Staff ke Manager. Pastikan jadwal benar sebelum Staff membuka input untuk pertama kali pada periode tersebut.'])
 h('Membuat dan membuka periode')

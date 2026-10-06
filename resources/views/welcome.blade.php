@@ -20,7 +20,7 @@
         <nav class="main-nav">
             <p class="nav-label">Ruang kerja</p>
             <a href="{{ route('dashboard') }}" class="nav-item active" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-3H4v3Zm10 0h6v-9h-6v9Zm0-13h6V4h-6v3Z"/></svg><span>Dashboard</span></a>
-            @if(auth()->user()->role === \App\Enums\UserRole::Member)<a href="{{ route('workload.entry') }}" class="nav-item"><svg viewBox="0 0 24 24"><path d="M9 11h6m-6 4h6M7 3h8l4 4v14H5V3h2Zm8 0v5h4"/></svg><span>Input saya</span></a>@endif
+            <a href="{{ route('workload.entry') }}" class="nav-item"><svg viewBox="0 0 24 24"><path d="M9 11h6m-6 4h6M7 3h8l4 4v14H5V3h2Zm8 0v5h4"/></svg><span>Input saya</span></a>
             <a href="{{ route('follow-ups.mine') }}" class="nav-item"><svg viewBox="0 0 24 24"><path d="m9 11 3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tindak lanjut saya</span>@if($myOpenFollowUps)<span class="nav-count">{{ $myOpenFollowUps }}</span>@endif</a>
             <a href="#team-members" class="nav-item"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m7-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87m-2-12a4 4 0 0 1 0 7.75"/></svg><span>Anggota tim</span><span class="nav-count">{{ $members->count() }}</span></a>
             <a href="#insights" class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M8 16v-4m4 4V7m4 9v-6"/></svg><span>Analitik</span></a>
@@ -73,7 +73,7 @@
             <section class="period-panel" aria-labelledby="period-title">
                 <div class="period-copy"><span class="period-icon"><svg viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/></svg></span><div><p id="period-title">Periode aktif</p><strong>{{ $period->period_start->translatedFormat('F Y') }}</strong></div><span class="status-pill"><i></i>{{ $period->isOpen() ? 'Terbuka' : 'Terkunci' }}</span></div>
                 <div class="deadline"><div><span>Batas pengisian</span><strong>{{ $period->submission_deadline->translatedFormat('d F Y') }}</strong></div><b>{{ max(0, now()->startOfDay()->diffInDays($period->submission_deadline, false)) }} hari lagi</b></div>
-                @if(auth()->user()->role === \App\Enums\UserRole::Member)<a href="{{ route('workload.entry') }}" class="button secondary">Catat aktivitas</a>@endif
+                <a href="{{ route('workload.entry') }}" class="button secondary">Catat aktivitas</a>
             </section>
             @else
             <section class="period-panel"><div class="period-copy"><div><p>Belum ada periode</p><strong>Hubungi PIC untuk membuka periode bulanan.</strong></div></div></section>

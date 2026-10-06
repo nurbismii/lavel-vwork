@@ -1,8 +1,53 @@
-<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laporan Beban Kerja</title>@fonts @vite(['resources/css/app.css'])</head><body class="print-report">
-<header><div><p>RUANGKERJA / LAPORAN TERKENDALI</p><h1>Laporan Beban Kerja Tim</h1><span>{{ $period?->period_start->translatedFormat('F Y') ?? 'Belum ada periode' }}</span></div><div><span>Dibuat oleh</span><strong>{{ auth()->user()->name }}</strong><small>{{ now()->format('d M Y H:i') }}</small></div></header>
-<main><div class="print-actions"><a href="{{ route('dashboard') }}" class="button secondary">Kembali</a><button class="button primary" onclick="window.print()">Cetak / Simpan PDF</button></div>
-@php($approvedRows=$rows->filter(fn($row)=>$row['submission']?->status===\App\Enums\SubmissionStatus::Approved))
-<section class="print-summary"><div><span>Total anggota</span><strong>{{ $rows->count() }}</strong></div><div><span>Data disetujui</span><strong>{{ $approvedRows->count() }}</strong></div><div><span>Kapasitas efektif</span><strong>{{ number_format($approvedRows->sum(fn($row)=>$row['metrics']['effective_minutes'])/60,1,',','.') }} jam</strong></div><div><span>Waktu aktual</span><strong>{{ number_format($approvedRows->sum(fn($row)=>$row['metrics']['required_minutes'])/60,1,',','.') }} jam</strong></div></section>
-<table><thead><tr><th>Anggota</th><th>Jabatan</th><th>Validasi</th><th>Kapasitas</th><th>Waktu aktual</th><th>Utilisasi</th><th>Status</th></tr></thead><tbody>@foreach($rows as $row)<tr><td><strong>{{ $row['user']->name }}</strong><small>{{ $row['user']->employee_code }}</small></td><td>{{ $row['user']->position }}</td><td>{{ $row['submission']?->status?->label() ?? 'Belum mengisi' }}</td><td>{{ number_format($row['metrics']['effective_minutes']/60,1,',','.') }} jam</td><td>{{ number_format($row['metrics']['required_minutes']/60,1,',','.') }} jam</td><td>{{ $row['metrics']['utilization']!==null?number_format($row['metrics']['utilization'],1,',','.').'%':'—' }}</td><td>{{ $row['metrics']['status']->label() }}</td></tr>@endforeach</tbody></table>
-<p class="print-note">Utilisasi adalah alat diagnosis kapasitas dan bukan satu-satunya dasar penilaian kinerja individu. Ambang harus dibaca bersama kualitas data, prioritas, dan kendala proses.</p></main>
-</body></html>
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Laporan Beban Kerja</title>@fonts @vite(['resources/css/app.css'])
+</head>
+
+<body class="print-report">
+    <header>
+        <div>
+            <p>RUANGKERJA / LAPORAN TERKENDALI</p>
+            <h1>Laporan Beban Kerja Tim</h1><span>{{ $period?->period_start->translatedFormat('F Y') ?? 'Belum ada periode' }}</span>
+        </div>
+        <div><span>Dibuat oleh</span><strong>{{ auth()->user()->name }}</strong><small>{{ now()->format('d M Y H:i') }}</small></div>
+    </header>
+    <main>
+        <div class="print-actions"><a href="{{ route('dashboard') }}" class="button secondary">Kembali</a><button class="button primary" onclick="window.print()">Cetak / Simpan PDF</button></div>
+        @php($approvedRows=$rows->filter(fn($row)=>$row['submission']?->status===\App\Enums\SubmissionStatus::Approved))
+        <section class="print-summary">
+            <div><span>Total anggota</span><strong>{{ $rows->count() }}</strong></div>
+            <div><span>Data disetujui</span><strong>{{ $approvedRows->count() }}</strong></div>
+            <div><span>Kapasitas efektif</span><strong>{{ number_format($approvedRows->sum(fn($row)=>$row['metrics']['effective_minutes'])/60,1,',','.') }} jam</strong></div>
+            <div><span>Waktu aktual</span><strong>{{ number_format($approvedRows->sum(fn($row)=>$row['metrics']['required_minutes'])/60,1,',','.') }} jam</strong></div>
+        </section>
+        <table>
+            <thead>
+                <tr>
+                    <th>Anggota</th>
+                    <th>Posisi</th>
+                    <th>Validasi</th>
+                    <th>Kapasitas</th>
+                    <th>Waktu aktual</th>
+                    <th>Utilisasi</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>@foreach($rows as $row)<tr>
+                    <td><strong>{{ $row['user']->name }}</strong><small>{{ $row['user']->employee_code }}</small></td>
+                    <td>{{ $row['user']->position }}</td>
+                    <td>{{ $row['submission']?->status?->label() ?? 'Belum mengisi' }}</td>
+                    <td>{{ number_format($row['metrics']['effective_minutes']/60,1,',','.') }} jam</td>
+                    <td>{{ number_format($row['metrics']['required_minutes']/60,1,',','.') }} jam</td>
+                    <td>{{ $row['metrics']['utilization']!==null?number_format($row['metrics']['utilization'],1,',','.').'%':'—' }}</td>
+                    <td>{{ $row['metrics']['status']->label() }}</td>
+                </tr>@endforeach</tbody>
+        </table>
+        <p class="print-note">Utilisasi adalah alat diagnosis kapasitas dan bukan satu-satunya dasar penilaian kinerja individu. Ambang harus dibaca bersama kualitas data, prioritas, dan kendala proses.</p>
+    </main>
+</body>
+
+</html>

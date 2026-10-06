@@ -20,7 +20,9 @@ class VisibleTeam
                     ->orWhere(fn (Builder $unit) => $unit
                         ->where('organizational_unit_id', $actor->organizational_unit_id)
                         ->where('role', UserRole::Member)))),
-            UserRole::Manager => $query->whereIn('role', [UserRole::Supervisor, UserRole::Member]),
+            UserRole::Manager => $query->where(fn (Builder $team) => $team
+                ->whereKey($actor->id)
+                ->orWhereIn('role', [UserRole::Supervisor, UserRole::Member])),
             UserRole::ProcessOwner, UserRole::Viewer => $query->where('organizational_unit_id', $actor->organizational_unit_id),
             UserRole::Administrator => $query,
         };

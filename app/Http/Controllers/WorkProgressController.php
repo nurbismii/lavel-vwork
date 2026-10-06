@@ -94,6 +94,7 @@ class WorkProgressController extends Controller
                 : 'Progres pekerjaan pada tanggal tersebut berhasil diperbarui.',
             'clear_draft' => 'progress-'.$entryMode.'-'.$submission->id,
             'progress_item_id' => $item->id,
+            'entry_tab' => 'progress',
         ]);
     }
 
@@ -112,7 +113,7 @@ class WorkProgressController extends Controller
             $progress->delete();
         });
 
-        return back()->with('success', 'Catatan progres berhasil dihapus.');
+        return back()->with(['success' => 'Catatan progres berhasil dihapus.', 'entry_tab' => 'progress']);
     }
 
     private function editableSubmission(Request $request): WorkloadSubmission

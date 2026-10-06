@@ -44,7 +44,7 @@ class XlsxReportExporter
             [['Dibuat oleh', 0], [$actor->name, 0]],
             [['Waktu pembuatan', 0], [now()->toDateTimeString(), 0]],
             [],
-            array_map(fn ($value) => [$value, 2], ['ID Anggota', 'Nama', 'Unit', 'Jabatan', 'Status Validasi', 'Kapasitas Efektif (jam)', 'Waktu Aktual (jam)', 'Utilisasi (%)', 'Status Beban']),
+            array_map(fn ($value) => [$value, 2], ['ID Anggota', 'Nama', 'Unit', 'Posisi', 'Status Validasi', 'Kapasitas Efektif (jam)', 'Waktu Aktual (jam)', 'Utilisasi (%)', 'Status Beban']),
         ];
         foreach ($rows as $row) {
             $data[] = [
